@@ -1,0 +1,1031 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Local Crypto Vault (Client-side)</title>
+  <style>
+    :root{
+      --bg: #0b1220;
+      --panel: rgba(255,255,255,0.06);
+      --text: #e9eefc;
+      --muted: rgba(233,238,252,0.75);
+      --border: rgba(255,255,255,0.12);
+      --accent: #7c3aed;
+      --good: #22c55e;
+      --warn: #f59e0b;
+      --bad: #ef4444;
+      --shadow: 0 14px 40px rgba(0,0,0,0.35);
+    }
+
+    *{ box-sizing: border-box; }
+    html, body { height: 100%; }
+    body{
+      margin:0;
+      font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial;
+      background: radial-gradient(1200px 700px at 20% 0%, rgba(124,58,237,0.35), transparent 60%),
+                  radial-gradient(900px 500px at 95% 10%, rgba(34,197,94,0.20), transparent 60%),
+                  var(--bg);
+      color: var(--text);
+    }
+    a{ color: inherit; text-decoration:none; }
+
+    .nav{
+      position: sticky; top:0;
+      backdrop-filter: blur(10px);
+      background: rgba(11,18,32,0.7);
+      border-bottom: 1px solid var(--border);
+      z-index: 10;
+    }
+    .nav-inner{
+      max-width: 1180px;
+      margin: 0 auto;
+      padding: 14px 22px;
+      display:flex; align-items:center; justify-content:space-between; gap:14px;
+    }
+    .brand{ display:flex; align-items:center; gap:10px; font-weight:750; letter-spacing:0.2px; }
+    .badge{
+      font-size: 12px;
+      padding: 3px 10px;
+      border: 1px solid var(--border);
+      border-radius: 999px;
+      color: var(--muted);
+      background: rgba(255,255,255,0.03);
+    }
+    .nav-links{ display:flex; gap:10px; flex-wrap:wrap; justify-content:flex-end; }
+    .nav-link{
+      padding: 9px 12px; border-radius: 10px;
+      border: 1px solid transparent; color: var(--muted);
+      cursor: pointer; user-select:none;
+    }
+    .nav-link:hover{
+      border-color: var(--border);
+      background: rgba(255,255,255,0.04);
+      color: var(--text);
+    }
+    .nav-link.active{
+      border-color: rgba(124,58,237,0.55);
+      background: rgba(124,58,237,0.18);
+      color: var(--text);
+    }
+
+    .container{ max-width:1180px; margin:0 auto; padding:22px; }
+    .header{ margin-top:18px; display:grid; gap:6px; }
+    h1{ margin:0; font-size:28px; letter-spacing:-0.3px; }
+    .sub{ margin:0; color: var(--muted); line-height: 1.4; }
+
+    .grid{ margin-top:18px; display:grid; grid-template-columns:1fr; gap:16px; }
+    @media (min-width: 980px){ .grid.two{ grid-template-columns:1fr 1fr; } }
+
+    .card{
+      background: linear-gradient(180deg, var(--panel), rgba(255,255,255,0.03));
+      border: 1px solid var(--border);
+      border-radius: 18px;
+      box-shadow: var(--shadow);
+      padding: 18px;
+    }
+    .card h2{ margin:0 0 10px 0; font-size:18px; }
+    label{ display:block; font-size:13px; color: var(--muted); margin:10px 0 6px; }
+    input[type=text], input[type=datetime-local], textarea, select{
+      width:100%;
+      border: 1px solid var(--border);
+      background: rgba(255,255,255,0.04);
+      color: var(--text);
+      padding: 12px 12px;
+      border-radius: 12px;
+      outline:none;
+    }
+    input[type=file]{
+      width:100%;
+      border: 1px dashed rgba(255,255,255,0.18);
+      background: rgba(255,255,255,0.03);
+      color: var(--muted);
+      padding: 10px 12px;
+      border-radius: 12px;
+      outline:none;
+    }
+    textarea{ min-height: 170px; resize: vertical; }
+    input:focus, textarea:focus, select:focus{
+      border-color: rgba(124,58,237,0.65);
+      box-shadow: 0 0 0 4px rgba(124,58,237,0.15);
+    }
+
+    .inline{ display:grid; grid-template-columns:1fr; gap:10px; }
+    @media (min-width:980px){ .inline.two{ grid-template-columns:1fr 1fr; } }
+
+    .btn-row{ display:flex; gap:10px; flex-wrap:wrap; margin-top:12px; }
+    .btn{
+      appearance:none;
+      border: 1px solid rgba(255,255,255,0.14);
+      background: rgba(255,255,255,0.06);
+      color: var(--text);
+      padding: 11px 14px;
+      border-radius: 12px;
+      cursor:pointer;
+      font-weight:650;
+      user-select:none;
+    }
+    .btn:hover{ background: rgba(255,255,255,0.09); border-color: rgba(255,255,255,0.22); }
+    .btn.primary{ background: rgba(124,58,237,0.25); border-color: rgba(124,58,237,0.55); }
+    .btn.primary:hover{ background: rgba(124,58,237,0.33); }
+    .btn.good{ background: rgba(34,197,94,0.18); border-color: rgba(34,197,94,0.50); }
+    .btn.good:hover{ background: rgba(34,197,94,0.25); }
+    .btn.bad{ background: rgba(239,68,68,0.16); border-color: rgba(239,68,68,0.50); }
+    .btn.bad:hover{ background: rgba(239,68,68,0.24); }
+
+    .flash{
+      margin-top: 14px;
+      padding: 12px 14px;
+      border-radius: 14px;
+      border: 1px solid rgba(245,158,11,0.55);
+      background: rgba(245,158,11,0.14);
+      color: #fff3d0;
+      display:none;
+    }
+    .flash.show{ display:block; }
+
+    .result{
+      margin-top: 16px;
+      padding: 14px;
+      border-radius: 14px;
+      border: 1px solid rgba(34,197,94,0.45);
+      background: rgba(34,197,94,0.10);
+      display:none;
+    }
+    .result.show{ display:block; }
+    .result-top{ display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom:10px; }
+    .result-title{ font-weight:800; }
+    .result pre{
+      margin:0; overflow-wrap:anywhere; white-space:pre-wrap; line-height:1.35;
+    }
+    .tip{ margin-top: 10px; font-size:13px; color: var(--muted); }
+    code{
+      padding: 2px 6px;
+      border-radius: 8px;
+      border: 1px solid var(--border);
+      background: rgba(255,255,255,0.04);
+    }
+    hr{ border:none; height:1px; background: var(--border); margin:16px 0; }
+
+    .pill{
+      display:inline-block;
+      padding: 4px 10px;
+      border-radius: 999px;
+      border: 1px solid var(--border);
+      background: rgba(255,255,255,0.03);
+      color: rgba(233,238,252,0.8);
+      font-size: 12px;
+    }
+    .pill.good{ border-color: rgba(34,197,94,0.5); background: rgba(34,197,94,0.12); }
+    .pill.warn{ border-color: rgba(245,158,11,0.55); background: rgba(245,158,11,0.12); }
+    .pill.bad{ border-color: rgba(239,68,68,0.55); background: rgba(239,68,68,0.12); }
+
+    .meter{
+      margin-top: 10px;
+      padding: 12px;
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      background: rgba(255,255,255,0.03);
+    }
+    .meter-top{
+      display:flex;
+      justify-content:space-between;
+      gap:10px;
+      align-items:center;
+      margin-bottom:8px;
+    }
+    .bar{
+      width:100%;
+      height:12px;
+      border-radius:999px;
+      background: rgba(255,255,255,0.08);
+      overflow:hidden;
+      border: 1px solid rgba(255,255,255,0.12);
+    }
+    .bar > div{
+      height:100%;
+      width:100%;
+      background: linear-gradient(90deg, rgba(124,58,237,0.65), rgba(34,197,94,0.55));
+    }
+
+    .table{
+      width:100%;
+      border-collapse: collapse;
+      margin-top: 10px;
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      overflow:hidden;
+    }
+    .table th, .table td{
+      text-align:left;
+      padding: 10px 12px;
+      border-bottom: 1px solid var(--border);
+      color: rgba(233,238,252,0.88);
+      vertical-align: top;
+    }
+    .table th{
+      background: rgba(255,255,255,0.04);
+      color: rgba(233,238,252,0.85);
+      font-weight:750;
+    }
+
+    .toast{
+      position: fixed;
+      right: 18px;
+      bottom: 18px;
+      padding: 10px 12px;
+      border-radius: 12px;
+      background: rgba(0,0,0,0.55);
+      border: 1px solid var(--border);
+      color: var(--text);
+      backdrop-filter: blur(8px);
+      opacity: 0;
+      transform: translateY(10px);
+      transition: all 160ms ease;
+      pointer-events: none;
+    }
+    .toast.show{ opacity:1; transform: translateY(0); }
+  </style>
+</head>
+<body>
+  <div class="nav">
+    <div class="nav-inner">
+      <div class="brand">
+        <div>🔐 Local Crypto Vault</div>
+        <div class="badge">AES-256-GCM (WebCrypto)</div>
+      </div>
+      <div class="nav-links">
+        <div class="nav-link active" data-tab="home">Encrypt / Decrypt</div>
+        <div class="nav-link" data-tab="keys">Keys</div>
+        <div class="nav-link" data-tab="capsules">Capsules</div>
+        <div class="nav-link" data-tab="stego">Stego</div>
+        <div class="nav-link" data-tab="about">About</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="container">
+    <div class="header">
+      <h1 id="pageTitle">Encrypt / Decrypt</h1>
+      <p class="sub">
+        Everything runs in your browser. Your key file stays on your machine and is never uploaded.
+        Use a 32-byte key file on a flash drive.
+      </p>
+    </div>
+
+    <div class="flash" id="flash"></div>
+
+    <!-- HOME -->
+    <div class="grid two tab" id="tab-home">
+      <div class="card">
+        <h2>Encrypt</h2>
+
+        <label>Key file (.key) (32 bytes)</label>
+        <input type="file" id="encKeyFile" accept=".key,application/octet-stream" />
+
+        <label>Plaintext</label>
+        <textarea id="encPlaintext" placeholder="Type the message you want to encrypt..."></textarea>
+
+        <div class="btn-row">
+          <button class="btn primary" id="btnEncrypt">Encrypt</button>
+        </div>
+        <div class="tip">Output is base64. Copy/paste anywhere.</div>
+      </div>
+
+      <div class="card">
+        <h2>Decrypt</h2>
+
+        <label>Key file (.key) (32 bytes)</label>
+        <input type="file" id="decKeyFile" accept=".key,application/octet-stream" />
+
+        <label>Ciphertext (base64)</label>
+        <textarea id="decCiphertext" placeholder="Paste encrypted base64 here..."></textarea>
+
+        <div class="btn-row">
+          <button class="btn good" id="btnDecrypt">Decrypt</button>
+        </div>
+        <div class="tip">Wrong key or tampered data fails (AES-GCM auth).</div>
+      </div>
+    </div>
+
+    <!-- KEYS -->
+    <div class="grid tab" id="tab-keys" style="display:none;">
+      <div class="card">
+        <h2>Generate & Download Key</h2>
+
+        <label>Filename (optional)</label>
+        <input type="text" id="keyFilename" placeholder="example: mykey.key" />
+
+        <div class="btn-row">
+          <button class="btn primary" id="btnGenKey">Generate 256-bit Key</button>
+          <button class="btn" id="btnDownloadKey" disabled>Download Key</button>
+        </div>
+
+        <div class="meter" id="entropyMeter" style="display:none;">
+          <div class="meter-top">
+            <div><b>Entropy Meter</b> <span class="pill good">Strong</span></div>
+            <div class="pill">256 / 256 bits</div>
+          </div>
+          <div class="bar"><div></div></div>
+          <div class="tip">
+            <b>Key fingerprint (SHA-256):</b><br>
+            <code id="keyFingerprint"></code>
+          </div>
+        </div>
+
+        <div class="tip">
+          Store this key on a flash drive. Anyone who has this key file can decrypt messages.
+        </div>
+      </div>
+    </div>
+
+    <!-- CAPSULES -->
+    <div class="grid two tab" id="tab-capsules" style="display:none;">
+      <div class="card">
+        <h2>Create Message Capsule</h2>
+
+        <label>Key file (.key) (32 bytes)</label>
+        <input type="file" id="capKeyFile" accept=".key,application/octet-stream" />
+
+        <label>Title (optional)</label>
+        <input type="text" id="capTitle" placeholder="Example: Anniversary note" />
+
+        <label>Message (encrypted)</label>
+        <textarea id="capMessage" placeholder="Type your secret message..."></textarea>
+
+        <div class="inline two">
+          <div>
+            <label>Expiration (optional)</label>
+            <input type="datetime-local" id="capExpiresAt" />
+          </div>
+          <div>
+            <label>One-time open</label>
+            <select id="capOneTime">
+              <option value="no" selected>No</option>
+              <option value="yes">Yes (consume after first successful decrypt)</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="btn-row">
+          <button class="btn primary" id="btnCreateCapsule">Create Capsule</button>
+        </div>
+
+        <div class="tip">
+          Capsules are stored in your browser (localStorage). If you clear browser data, they’re gone.
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>Your Capsules</h2>
+        <table class="table">
+          <thead>
+            <tr>
+              <th>Title / ID</th>
+              <th>Created</th>
+              <th>Expires</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody id="capsuleRows"></tbody>
+        </table>
+
+        <hr>
+
+        <h2>Open Capsule</h2>
+
+        <label>Capsule ID</label>
+        <input type="text" id="openCapsuleId" placeholder="Paste capsule ID here..." />
+
+        <label>Key file (.key)</label>
+        <input type="file" id="openCapKeyFile" accept=".key,application/octet-stream" />
+
+        <div class="btn-row">
+          <button class="btn good" id="btnOpenCapsule">Decrypt Capsule</button>
+          <button class="btn bad" id="btnDeleteCapsule">Delete Capsule</button>
+        </div>
+
+        <div class="tip">
+          One-time capsules are marked “Consumed” after first successful decrypt.
+        </div>
+      </div>
+    </div>
+
+    <!-- STEGO -->
+    <div class="grid two tab" id="tab-stego" style="display:none;">
+      <div class="card">
+        <h2>Embed Ciphertext into PNG (LSB)</h2>
+
+        <label>Cover image (PNG recommended)</label>
+        <input type="file" id="stegoCoverFile" accept="image/*" />
+
+        <label>Ciphertext (base64) to embed</label>
+        <textarea id="stegoCiphertext" placeholder="Paste ciphertext base64 here..."></textarea>
+
+        <label>Download filename (optional)</label>
+        <input type="text" id="stegoFilename" placeholder="example: anniversary_photo.png" />
+
+        <div class="btn-row">
+          <button class="btn primary" id="btnStegoEmbed">Embed & Download PNG</button>
+        </div>
+
+        <div class="tip">
+          This is true LSB steganography in RGB channels, done in your browser.
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>Extract Ciphertext from Stego PNG</h2>
+
+        <label>Stego PNG</label>
+        <input type="file" id="stegoInFile" accept="image/png" />
+
+        <div class="btn-row">
+          <button class="btn good" id="btnStegoExtract">Extract</button>
+        </div>
+
+        <div class="tip">
+          After extracting, paste the ciphertext into Decrypt or create a Capsule.
+        </div>
+      </div>
+    </div>
+
+    <!-- ABOUT -->
+    <div class="grid tab" id="tab-about" style="display:none;">
+      <div class="card">
+        <h2>About</h2>
+        <p style="margin:0; color: rgba(233,238,252,0.85); line-height:1.5;">
+          Built by <b>Shadi Jamil</b>.
+        </p>
+        <div class="tip">
+          This is a client-side encryption tool (WebCrypto AES-256-GCM). Keys are never uploaded.
+          Capsules are stored locally in your browser.
+        </div>
+      </div>
+    </div>
+
+    <!-- RESULT PANEL -->
+    <div class="result" id="resultPanel">
+      <div class="result-top">
+        <div class="result-title">Result</div>
+        <div class="btn-row" style="margin:0;">
+          <button class="btn" id="btnCopyResult">Copy to clipboard</button>
+        </div>
+      </div>
+      <pre id="resultText"></pre>
+    </div>
+
+  </div>
+
+  <div class="toast" id="toast">Copied!</div>
+
+<script>
+/* ==========================
+   Small UI helpers
+========================== */
+const $ = (id) => document.getElementById(id);
+
+function showToast(msg){
+  const t = $("toast");
+  t.textContent = msg || "Copied!";
+  t.classList.add("show");
+  setTimeout(() => t.classList.remove("show"), 1200);
+}
+
+function flash(msg){
+  const f = $("flash");
+  f.textContent = msg;
+  f.classList.add("show");
+  setTimeout(() => f.classList.remove("show"), 2600);
+}
+
+function showResult(text){
+  $("resultText").textContent = text;
+  $("resultPanel").classList.add("show");
+  window.scrollTo({ top: document.body.scrollHeight, behavior: "smooth" });
+}
+
+function clearResult(){
+  $("resultText").textContent = "";
+  $("resultPanel").classList.remove("show");
+}
+
+$("btnCopyResult").addEventListener("click", async () => {
+  let text = $("resultText").textContent || "";
+  text = text.replace(/^Ciphertext \\(base64\\):\\s*/i, "");
+  text = text.replace(/^Plaintext:\\s*/i, "");
+  text = text.trim();
+
+  try{
+    await navigator.clipboard.writeText(text);
+    showToast("Copied to clipboard");
+  }catch(e){
+    // fallback
+    const ta = document.createElement("textarea");
+    ta.value = text;
+    document.body.appendChild(ta);
+    ta.select();
+    try{ document.execCommand("copy"); showToast("Copied to clipboard"); }
+    catch(_){ showToast("Copy failed"); }
+    document.body.removeChild(ta);
+  }
+});
+
+/* ==========================
+   Tab navigation
+========================== */
+const tabTitles = {
+  home: "Encrypt / Decrypt",
+  keys: "Keys",
+  capsules: "Message Capsules",
+  stego: "Steganographic Export",
+  about: "About"
+};
+
+document.querySelectorAll(".nav-link").forEach(el => {
+  el.addEventListener("click", () => {
+    const tab = el.getAttribute("data-tab");
+    switchTab(tab);
+  });
+});
+
+function switchTab(tab){
+  clearResult();
+  document.querySelectorAll(".nav-link").forEach(n => n.classList.remove("active"));
+  document.querySelector(`.nav-link[data-tab="${tab}"]`).classList.add("active");
+
+  document.querySelectorAll(".tab").forEach(t => t.style.display = "none");
+  $(`tab-${tab}`).style.display = "";
+
+  $("pageTitle").textContent = tabTitles[tab] || "Local Crypto Vault";
+
+  if(tab === "capsules") renderCapsulesTable();
+}
+
+/* ==========================
+   WebCrypto helpers
+========================== */
+function u8ToB64(u8){
+  let s = "";
+  for(const b of u8) s += String.fromCharCode(b);
+  return btoa(s);
+}
+function b64ToU8(b64){
+  const bin = atob(b64.trim());
+  const u8 = new Uint8Array(bin.length);
+  for(let i=0;i<bin.length;i++) u8[i] = bin.charCodeAt(i);
+  return u8;
+}
+function concatU8(a,b){
+  const out = new Uint8Array(a.length + b.length);
+  out.set(a,0); out.set(b,a.length);
+  return out;
+}
+async function readKeyFile(file){
+  if(!file) throw new Error("Please choose a key file.");
+  const buf = await file.arrayBuffer();
+  const keyBytes = new Uint8Array(buf);
+  if(keyBytes.length !== 32) throw new Error(`Key file must be exactly 32 bytes (found ${keyBytes.length}).`);
+  const key = await crypto.subtle.importKey(
+    "raw",
+    keyBytes,
+    { name: "AES-GCM" },
+    false,
+    ["encrypt","decrypt"]
+  );
+  return { key, keyBytes };
+}
+async function sha256Hex(u8){
+  const hash = await crypto.subtle.digest("SHA-256", u8);
+  const arr = new Uint8Array(hash);
+  return Array.from(arr).map(b => b.toString(16).padStart(2,"0")).join("");
+}
+function formatFingerprint(hex){
+  const pairs = hex.match(/.{1,2}/g) || [];
+  return pairs.join(":").slice(0,95) + "…";
+}
+
+async function aesGcmEncrypt(key, plaintext){
+  const iv = crypto.getRandomValues(new Uint8Array(12));
+  const pt = new TextEncoder().encode(plaintext);
+  const ctBuf = await crypto.subtle.encrypt({ name:"AES-GCM", iv }, key, pt);
+  const ct = new Uint8Array(ctBuf);
+  // store: iv + ct (same idea as your python version)
+  const blob = concatU8(iv, ct);
+  return u8ToB64(blob);
+}
+async function aesGcmDecrypt(key, ciphertextB64){
+  const blob = b64ToU8(ciphertextB64);
+  if(blob.length < 12 + 16) throw new Error("Ciphertext too short or invalid.");
+  const iv = blob.slice(0,12);
+  const ct = blob.slice(12);
+  const ptBuf = await crypto.subtle.decrypt({ name:"AES-GCM", iv }, key, ct);
+  return new TextDecoder().decode(ptBuf);
+}
+
+/* ==========================
+   Keys page
+========================== */
+let pendingKeyBytes = null;
+
+$("btnGenKey").addEventListener("click", async () => {
+  pendingKeyBytes = crypto.getRandomValues(new Uint8Array(32));
+  const hex = await sha256Hex(pendingKeyBytes);
+  $("keyFingerprint").textContent = formatFingerprint(hex);
+  $("entropyMeter").style.display = "";
+  $("btnDownloadKey").disabled = false;
+  flash("Key generated (not saved yet). Click Download Key.");
+});
+
+$("btnDownloadKey").addEventListener("click", () => {
+  if(!pendingKeyBytes) return;
+  let name = ($("keyFilename").value || "").trim();
+  if(!name) name = "mykey.key";
+  if(!name.toLowerCase().endsWith(".key")) name += ".key";
+
+  // sanitize a bit
+  name = name.replace(/[\\\\/]/g, "").replace(/\\.+/g, "."); // no path
+  if(name.length < 4) name = "mykey.key";
+
+  const blob = new Blob([pendingKeyBytes], { type: "application/octet-stream" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url; a.download = name;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+
+  flash(`Downloaded: ${name}`);
+});
+
+/* ==========================
+   Encrypt / Decrypt page
+========================== */
+$("btnEncrypt").addEventListener("click", async () => {
+  try{
+    const file = $("encKeyFile").files[0];
+    const { key } = await readKeyFile(file);
+    const plaintext = $("encPlaintext").value || "";
+    if(!plaintext.trim()) throw new Error("Please type plaintext.");
+    const out = await aesGcmEncrypt(key, plaintext);
+    showResult(`Ciphertext (base64):\n\n${out}`);
+  }catch(e){
+    flash(e.message || String(e));
+  }
+});
+
+$("btnDecrypt").addEventListener("click", async () => {
+  try{
+    const file = $("decKeyFile").files[0];
+    const { key } = await readKeyFile(file);
+    const ctb64 = $("decCiphertext").value || "";
+    if(!ctb64.trim()) throw new Error("Please paste ciphertext (base64).");
+    const pt = await aesGcmDecrypt(key, ctb64);
+    showResult(`Plaintext:\n\n${pt}`);
+  }catch(e){
+    flash(e.message || String(e));
+  }
+});
+
+/* ==========================
+   Capsules (localStorage)
+========================== */
+const CAPSULES_KEY = "scap_capsules_v1";
+
+function loadCapsules(){
+  try{
+    const raw = localStorage.getItem(CAPSULES_KEY);
+    if(!raw) return {};
+    const obj = JSON.parse(raw);
+    return obj && typeof obj === "object" ? obj : {};
+  }catch{
+    return {};
+  }
+}
+function saveCapsules(obj){
+  localStorage.setItem(CAPSULES_KEY, JSON.stringify(obj));
+}
+function newCapsuleId(){
+  // 16 hex chars
+  const u = crypto.getRandomValues(new Uint8Array(8));
+  return Array.from(u).map(b=>b.toString(16).padStart(2,"0")).join("");
+}
+function isExpiredCapsule(c){
+  if(!c.expires_at) return false;
+  const dt = new Date(c.expires_at);
+  return !isNaN(dt.getTime()) && dt.getTime() <= Date.now();
+}
+function capsuleStatus(c){
+  if(isExpiredCapsule(c)) return { html: '<span class="pill bad">Expired</span>', blocked:true };
+  if(c.one_time && c.opened) return { html: '<span class="pill warn">Consumed</span>', blocked:true };
+  if(c.one_time) return { html: '<span class="pill warn">One-time</span>', blocked:false };
+  return { html: '<span class="pill good">Ready</span>', blocked:false };
+}
+function renderCapsulesTable(){
+  const caps = loadCapsules();
+  const ids = Object.keys(caps);
+  // newest first
+  ids.sort((a,b) => new Date(caps[b].created_at).getTime() - new Date(caps[a].created_at).getTime());
+
+  const tbody = $("capsuleRows");
+  tbody.innerHTML = "";
+
+  if(ids.length === 0){
+    tbody.innerHTML = `<tr><td colspan="4">No capsules yet. Create one on the left.</td></tr>`;
+    return;
+  }
+
+  for(const id of ids){
+    const c = caps[id];
+    const title = (c.title || "(Untitled)").slice(0,80);
+    const created = c.created_at ? new Date(c.created_at).toLocaleString() : "";
+    const expires = c.expires_at ? new Date(c.expires_at).toLocaleString() : "—";
+    const st = capsuleStatus(c);
+
+    const tr = document.createElement("tr");
+    tr.innerHTML = `
+      <td>
+        <b style="cursor:pointer; text-decoration:underline;" data-id="${id}" class="capLink">${title}</b><br>
+        <span class="pill">${id}</span>
+      </td>
+      <td>${created}</td>
+      <td>${expires}</td>
+      <td>${st.html}</td>
+    `;
+    tbody.appendChild(tr);
+  }
+
+  document.querySelectorAll(".capLink").forEach(el => {
+    el.addEventListener("click", () => {
+      const id = el.getAttribute("data-id");
+      $("openCapsuleId").value = id;
+      flash("Capsule ID loaded into Open Capsule.");
+    });
+  });
+}
+
+$("btnCreateCapsule").addEventListener("click", async () => {
+  try{
+    const file = $("capKeyFile").files[0];
+    const { key } = await readKeyFile(file);
+
+    const title = ($("capTitle").value || "").trim();
+    const msg = ($("capMessage").value || "");
+    if(!msg.trim()) throw new Error("Please type a message.");
+
+    const expiresLocal = $("capExpiresAt").value || "";
+    const expiresAt = expiresLocal ? new Date(expiresLocal).toISOString() : null;
+    const oneTime = ($("capOneTime").value === "yes");
+
+    const ct_b64 = await aesGcmEncrypt(key, msg);
+
+    const id = newCapsuleId();
+    const caps = loadCapsules();
+    caps[id] = {
+      version: 1,
+      title,
+      created_at: new Date().toISOString(),
+      expires_at: expiresAt,
+      one_time: oneTime,
+      opened: false,
+      ciphertext_b64: ct_b64
+    };
+    saveCapsules(caps);
+
+    renderCapsulesTable();
+    $("openCapsuleId").value = id;
+    showResult(`Capsule created:\n\nID: ${id}\n\nCiphertext (base64):\n\n${ct_b64}`);
+    flash("Capsule created.");
+  }catch(e){
+    flash(e.message || String(e));
+  }
+});
+
+$("btnOpenCapsule").addEventListener("click", async () => {
+  try{
+    const id = ($("openCapsuleId").value || "").trim();
+    if(!id) throw new Error("Enter a capsule ID.");
+
+    const caps = loadCapsules();
+    const c = caps[id];
+    if(!c) throw new Error("Capsule not found.");
+
+    const st = capsuleStatus(c);
+    if(st.blocked){
+      throw new Error("This capsule is expired or already consumed.");
+    }
+
+    const file = $("openCapKeyFile").files[0];
+    const { key } = await readKeyFile(file);
+
+    const pt = await aesGcmDecrypt(key, c.ciphertext_b64);
+
+    // consume if one-time
+    if(c.one_time){
+      c.opened = true;
+      c.opened_at = new Date().toISOString();
+      caps[id] = c;
+      saveCapsules(caps);
+      renderCapsulesTable();
+    }
+
+    showResult(`Plaintext:\n\n${pt}`);
+  }catch(e){
+    flash(e.message || String(e));
+  }
+});
+
+$("btnDeleteCapsule").addEventListener("click", () => {
+  const id = ($("openCapsuleId").value || "").trim();
+  if(!id){ flash("Enter a capsule ID to delete."); return; }
+
+  const caps = loadCapsules();
+  if(!caps[id]){ flash("Capsule not found."); return; }
+  delete caps[id];
+  saveCapsules(caps);
+  renderCapsulesTable();
+  flash("Capsule deleted.");
+});
+
+/* ==========================
+   Steganography (LSB) in-browser
+   - Magic + length + payload
+========================== */
+const STEGO_MAGIC = new TextEncoder().encode("SCAP1"); // 5 bytes
+
+function bytesToBits(u8){
+  const bits = [];
+  for(const b of u8){
+    for(let i=7;i>=0;i--) bits.push((b>>i)&1);
+  }
+  return bits;
+}
+function bitsToBytes(bits){
+  const out = [];
+  for(let i=0;i<bits.length;i+=8){
+    let v = 0;
+    for(let j=0;j<8 && (i+j)<bits.length;j++){
+      v = (v<<1) | bits[i+j];
+    }
+    out.push(v);
+  }
+  return new Uint8Array(out);
+}
+function be32(n){
+  return new Uint8Array([
+    (n>>>24)&255,
+    (n>>>16)&255,
+    (n>>>8)&255,
+    (n>>>0)&255
+  ]);
+}
+function u8Eq(a,b){
+  if(a.length !== b.length) return false;
+  for(let i=0;i<a.length;i++) if(a[i]!==b[i]) return false;
+  return true;
+}
+
+async function loadImageToCanvas(file){
+  const url = URL.createObjectURL(file);
+  try{
+    const img = new Image();
+    img.src = url;
+    await img.decode();
+    const canvas = document.createElement("canvas");
+    canvas.width = img.naturalWidth;
+    canvas.height = img.naturalHeight;
+    const ctx = canvas.getContext("2d", { willReadFrequently:true });
+    ctx.drawImage(img,0,0);
+    return { canvas, ctx };
+  }finally{
+    URL.revokeObjectURL(url);
+  }
+}
+
+function embedLSB(imageData, payloadBytes){
+  // data is Uint8ClampedArray RGBA
+  const header = new Uint8Array(STEGO_MAGIC.length + 4 + payloadBytes.length);
+  header.set(STEGO_MAGIC, 0);
+  header.set(be32(payloadBytes.length), STEGO_MAGIC.length);
+  header.set(payloadBytes, STEGO_MAGIC.length + 4);
+
+  const bits = bytesToBits(header);
+
+  // capacity: 3 bits per pixel (RGB), ignore alpha
+  const data = imageData.data;
+  const pixelCount = data.length / 4;
+  const capacityBits = pixelCount * 3;
+  if(bits.length > capacityBits){
+    throw new Error(`Image too small. Need ${bits.length} bits, have ${capacityBits} bits.`);
+  }
+
+  let bi = 0;
+  for(let i=0;i<data.length;i+=4){
+    // R,G,B
+    for(let c=0;c<3;c++){
+      if(bi >= bits.length) return; // done
+      data[i+c] = (data[i+c] & 0xFE) | bits[bi++];
+    }
+  }
+}
+
+function extractLSB(imageData){
+  const data = imageData.data;
+  const bits = [];
+
+  for(let i=0;i<data.length;i+=4){
+    bits.push(data[i] & 1);
+    bits.push(data[i+1] & 1);
+    bits.push(data[i+2] & 1);
+  }
+
+  // need 9 bytes = 72 bits for magic+len
+  const headerBits = bits.slice(0, 72);
+  const headerBytes = bitsToBytes(headerBits);
+
+  const magic = headerBytes.slice(0,5);
+  if(!u8Eq(magic, STEGO_MAGIC)){
+    throw new Error("No stego payload found (magic mismatch).");
+  }
+
+  const lenBytes = headerBytes.slice(5,9);
+  const payloadLen = (lenBytes[0]<<24) | (lenBytes[1]<<16) | (lenBytes[2]<<8) | lenBytes[3];
+  if(payloadLen < 0) throw new Error("Invalid payload length.");
+
+  const totalBytes = 9 + payloadLen;
+  const totalBits = totalBytes * 8;
+  if(totalBits > bits.length) throw new Error("Stego payload length invalid or image corrupted.");
+
+  const fullBytes = bitsToBytes(bits.slice(0, totalBits));
+  const payload = fullBytes.slice(9, 9 + payloadLen);
+  return payload;
+}
+
+function sanitizePngName(name){
+  name = (name || "").trim();
+  if(!name) name = "stego_export.png";
+  const allowed = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-_ .";
+  name = Array.from(name).filter(ch => allowed.includes(ch)).join("").trim();
+  name = name.replace("..",".").replace(/[\\\\/]/g,"");
+  if(!name.toLowerCase().endsWith(".png")) name += ".png";
+  if(name.length < 5) name = "stego_export.png";
+  return name;
+}
+
+$("btnStegoEmbed").addEventListener("click", async () => {
+  try{
+    const cover = $("stegoCoverFile").files[0];
+    const ct = ($("stegoCiphertext").value || "").trim();
+    if(!cover) throw new Error("Choose a cover image.");
+    if(!ct) throw new Error("Paste ciphertext to embed.");
+
+    const payloadBytes = new TextEncoder().encode(ct);
+
+    const { canvas, ctx } = await loadImageToCanvas(cover);
+    const imgData = ctx.getImageData(0,0,canvas.width,canvas.height);
+    embedLSB(imgData, payloadBytes);
+    ctx.putImageData(imgData,0,0);
+
+    const blob = await new Promise(res => canvas.toBlob(res, "image/png"));
+    if(!blob) throw new Error("Failed to create PNG.");
+
+    const name = sanitizePngName($("stegoFilename").value);
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url; a.download = name;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+
+    flash(`Downloaded: ${name}`);
+  }catch(e){
+    flash(e.message || String(e));
+  }
+});
+
+$("btnStegoExtract").addEventListener("click", async () => {
+  try{
+    const file = $("stegoInFile").files[0];
+    if(!file) throw new Error("Choose a stego PNG.");
+
+    const { canvas, ctx } = await loadImageToCanvas(file);
+    const imgData = ctx.getImageData(0,0,canvas.width,canvas.height);
+    const payload = extractLSB(imgData);
+    const ciphertext = new TextDecoder().decode(payload);
+
+    showResult(`Ciphertext (base64):\n\n${ciphertext}`);
+    flash("Ciphertext extracted.");
+  }catch(e){
+    flash(e.message || String(e));
+  }
+});
+
+/* ==========================
+   Initialize
+========================== */
+renderCapsulesTable();
+</script>
+</body>
+</html>
